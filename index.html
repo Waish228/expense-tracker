@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TrackMySpend — Smart Expense Tracker</title>
+  <meta name="description" content="Track your daily expenses with beautiful visualizations, automatic SMS parsing, and manual entry."/>
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ -->
+<!--           AUTH SCREEN                  -->
+<!-- ═══════════════════════════════════════ -->
+<div id="auth-screen" class="auth-wrapper">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <h1>Track<span>MySpend</span></h1>
+      <p>Smart expense tracking</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Log In</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- AUTH SUCCESS/INFO MESSAGE -->
+    <div id="auth-message" class="auth-message" style="display:none"></div>
+
+    <!-- RESEND VERIFICATION EMAIL SECTION -->
+    <div id="resend-section" class="resend-section" style="display:none">
+      <div class="resend-icon">✉️</div>
+      <p class="resend-title">Verify your email</p>
+      <p class="resend-desc">We've sent a verification link to <strong id="resend-email-display"></strong>. Check your inbox (and spam folder).</p>
+      <button class="btn btn-primary btn-full" id="resend-btn" onclick="handleResendVerification()">Resend Verification Email</button>
+      <p id="resend-status" class="resend-status"></p>
+      <div class="back-to-login" style="margin-top:1rem">
+        <a href="#" onclick="hideResendSection(); switchAuthTab('login'); return false;">← Back to Log In</a>
+      </div>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="login-email" class="form-input" placeholder="you@email.com" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required/>
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password', this)" aria-label="Show password">
+            <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="forgot-link-wrap">
+        <a href="#" class="forgot-link" onclick="switchAuthTab('forgot'); return false;">Forgot Password?</a>
+      </div>
+      <div id="login-error" class="form-error"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="login-btn">Log In</button>
+    </form>
+
+    <!-- SIGNUP FORM -->
+    <form id="signup-form" style="display:none" onsubmit="handleSignup(event)">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" id="signup-name" class="form-input" placeholder="Your Name" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="signup-email" class="form-input" placeholder="you@email.com" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="signup-password" class="form-input" placeholder="Min 6 characters" required minlength="6"/>
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('signup-password', this)" aria-label="Show password">
+            <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="signup-confirm-password" class="form-input" placeholder="Re-enter password" required minlength="6"/>
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('signup-confirm-password', this)" aria-label="Show password">
+            <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="signup-error" class="form-error"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="signup-btn">Create Account</button>
+    </form>
+
+    <!-- FORGOT PASSWORD FORM -->
+    <form id="forgot-form" style="display:none" onsubmit="handleForgotPassword(event)">
+      <div class="form-group">
+        <p class="forgot-desc">Enter your email address and we'll send you a link to reset your password.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="forgot-email" class="form-input" placeholder="you@email.com" required/>
+      </div>
+      <div id="forgot-error" class="form-error"></div>
+      <div id="forgot-success" class="form-success" style="display:none"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="forgot-btn">Send Reset Link</button>
+      <div class="back-to-login">
+        <a href="#" onclick="switchAuthTab('login'); return false;">← Back to Log In</a>
+      </div>
+    </form>
+
+    <!-- SET NEW PASSWORD FORM (shown after clicking reset link) -->
+    <form id="reset-password-form" style="display:none" onsubmit="handleResetPassword(event)">
+      <div class="form-group">
+        <p class="forgot-desc">Enter your new password below.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="reset-password" class="form-input" placeholder="Min 6 characters" required minlength="6"/>
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reset-password', this)" aria-label="Show password">
+            <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="reset-confirm-password" class="form-input" placeholder="Re-enter password" required minlength="6"/>
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reset-confirm-password', this)" aria-label="Show password">
+            <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="reset-error" class="form-error"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="reset-btn">Set New Password</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!--           MAIN APP                     -->
+<!-- ═══════════════════════════════════════ -->
+
+<!-- MOBILE HEADER -->
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <h2 style="font-size:1.1rem;font-weight:700;">Track<span style="color:var(--blue)">MySpend</span></h2>
+  <button class="fab" style="position:static;width:36px;height:36px;font-size:1.2rem;box-shadow:none;" onclick="openModal()">+</button>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div id="app" class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h2>Track<span>MySpend</span></h2>
+      <p>Expense Tracker</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" data-page="transactions" onclick="switchPage('transactions')">
+        <span class="nav-icon">📋</span> Transactions
+      </button>
+      <button class="nav-item" data-page="settings" onclick="switchPage('settings')">
+        <span class="nav-icon">⚙️</span> Settings
+      </button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="theme-toggle" onclick="toggleTheme()">
+        <span>🌙</span>
+        <div class="toggle-track on" id="theme-track">
+          <div class="toggle-thumb"></div>
+        </div>
+        <span>Dark Mode</span>
+      </div>
+      <button class="nav-item" onclick="handleLogout()" style="margin-top:0.5rem;">
+        <span class="nav-icon">🚪</span> Log Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- ══════ DASHBOARD PAGE ══════ -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <div>
+          <h1 id="greeting">Good evening</h1>
+          <p id="date-display"></p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ Add Expense</button>
+      </div>
+
+      <!-- SUMMARY CARDS -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-icon" style="background:var(--red-bg)">💸</div>
+          <div class="amount" id="today-spent" style="color:var(--red)">₹0</div>
+          <div class="label">Spent Today</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon" style="background:var(--green-bg)">💰</div>
+          <div class="amount" id="today-income" style="color:var(--green)">₹0</div>
+          <div class="label">Received Today</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon" style="background:var(--purple-bg)">📅</div>
+          <div class="amount" id="month-spent" style="color:var(--purple)">₹0</div>
+          <div class="label">This Month Spent</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon" style="background:var(--cyan-bg)">📥</div>
+          <div class="amount" id="month-income" style="color:var(--cyan)">₹0</div>
+          <div class="label">This Month Received</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon" style="background:var(--blue-bg)">🎯</div>
+          <div class="amount" id="budget-left" style="color:var(--blue)">₹0</div>
+          <div class="label">Budget Left</div>
+        </div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>📈 Spending Trend (30 Days)</h3>
+          <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>🍩 By Category</h3>
+          <div class="chart-wrap"><canvas id="chart-category"></canvas></div>
+        </div>
+      </div>
+
+      <!-- RECENT TRANSACTIONS -->
+      <div class="tx-section">
+        <div class="tx-header">
+          <h3>Recent Transactions</h3>
+          <button class="btn btn-ghost btn-sm" onclick="switchPage('transactions')">View All →</button>
+        </div>
+        <ul class="tx-list" id="recent-tx-list"></ul>
+      </div>
+    </div>
+
+    <!-- ══════ TRANSACTIONS PAGE ══════ -->
+    <div id="page-transactions" class="page" style="display:none">
+      <div class="page-header">
+        <div>
+          <h1>Transactions</h1>
+          <p>All your income and expenses</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ Add New</button>
+      </div>
+      <div class="tx-section">
+        <div class="tx-filters">
+          <button class="filter-chip active" data-filter="all" onclick="setFilter('all')">All</button>
+          <button class="filter-chip" data-filter="debit" onclick="setFilter('debit')">Expenses</button>
+          <button class="filter-chip" data-filter="credit" onclick="setFilter('credit')">Income</button>
+          <button class="filter-chip" data-filter="sms" onclick="setFilter('sms')">SMS</button>
+          <button class="filter-chip" data-filter="manual" onclick="setFilter('manual')">Manual</button>
+          <input type="search" class="search-input" placeholder="Search..." oninput="searchTx(this.value)" id="tx-search"/>
+        </div>
+        <ul class="tx-list" id="full-tx-list"></ul>
+      </div>
+    </div>
+
+    <!-- ══════ SETTINGS PAGE ══════ -->
+    <div id="page-settings" class="page" style="display:none">
+      <div class="page-header">
+        <div>
+          <h1>Settings</h1>
+          <p>Manage your account and preferences</p>
+        </div>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3>🎯 Monthly Budget</h3>
+          <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">Set a monthly spending limit to stay on track.</p>
+          <div class="form-group">
+            <input type="number" id="budget-input" class="form-input" placeholder="e.g. 10000" min="0"/>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveBudget()">Save Budget</button>
+        </div>
+        <div class="settings-card">
+          <h3>👤 Account</h3>
+          <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">Your login information.</p>
+          <div class="form-group">
+            <label class="form-label">Name</label>
+            <input type="text" id="settings-name" class="form-input"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="settings-email" class="form-input" disabled/>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveProfile()">Update Profile</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!--           ADD TRANSACTION MODAL        -->
+<!-- ═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Add Transaction</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="type-toggle">
+      <button class="type-btn active-debit" id="type-debit" onclick="setType('debit')">💸 Expense</button>
+      <button class="type-btn" id="type-credit" onclick="setType('credit')">💰 Income</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Amount (₹)</label>
+      <input type="number" id="tx-amount" class="form-input" placeholder="0.00" min="0.01" step="0.01" required style="font-size:1.4rem;font-family:'JetBrains Mono',monospace;font-weight:700;"/>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <div class="cat-grid" id="cat-grid"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input type="text" id="tx-desc" class="form-input" placeholder="What was this for?"/>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" id="tx-date" class="form-input"/>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="tx-submit" onclick="submitTransaction()">Add Transaction</button>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast" class="toast"></div>
+
+<!-- FAB (desktop) -->
+<button class="fab" id="fab" style="display:none" onclick="openModal()">+</button>
+
+<script src="app.js"></script>
+</body>
+</html>
