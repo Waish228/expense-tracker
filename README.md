@@ -4,7 +4,7 @@ A full-stack personal expense tracker web app built with vanilla JavaScript and 
 
 ## 🔗 Live Demo
 
-🌐 **[View Live →](https://myspendtracker.netlify.app)** *(update with your actual URL)*
+🌐 **[View Live →]([https://myspendtracker.netlify.app](https://trackmyspend-waish.netlify.app/))** *(update with your actual URL)*
 
 ## ✨ Features
 
